@@ -19,6 +19,7 @@ jobs:
         with:
           python-version: "3.12"
 
+
       - name: Install System & Python Dependencies
         run: |
           sudo apt-get update
@@ -37,8 +38,8 @@ jobs:
 
           # 注册新设备并接受服务条款
           sudo warp-cli --accept-tos registration new
-          # 设置为代理模式
-          sudo warp-cli --accept-tos set-mode proxy
+          # 设置为代理模式（注意命令已更新）
+          sudo warp-cli --accept-tos mode proxy
           # 启动连接（默认 SOCKS5 端口为 40000）
           sudo warp-cli --accept-tos connect
 
@@ -47,7 +48,7 @@ jobs:
           # 验证 WARP 代理是否生效
           echo "Checking WARP proxy status..."
           curl -s -x socks5h://127.0.0.1:40000 https://www.cloudflare.com/cdn-cgi/trace | grep "warp" || true
-
+          
       - name: Run Renew Script
         env:
           USERS_JSON: ${{ secrets.USERS_JSON }}
