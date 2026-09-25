@@ -1,33 +1,30 @@
-name: Renew KataBump
-
+name: Katabump Auto Renew
 on:
   schedule:
-    # 每天 UTC 0 点运行，你可以根据需要调整时间
-    - cron: '0 0 * * *'
+    # 每天 UTC 0 点（北京时间 8 点）
+    - cron: "0 0 * * *"
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   renew:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.12"
 
-      - name: Install dependencies
+      - name: Install System & Python Dependencies
         run: |
-          pip install -r requirements.txt
           sudo apt-get update
-          sudo apt-get install -y xvfb wget curl gnupg lsb-release
-          # 安装 Google Chrome（脚本使用 undetected-chromedriver，需要 Chrome）
-          wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg
-          echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list
-          sudo apt-get update
-          sudo apt-get install -y google-chrome-stable
+          sudo apt-get install -y xvfb x11-utils xdotool scrot fonts-noto-cjk
+          pip install seleniumbase requests
+          seleniumbase install chromedriver
 
       - name: Install and configure Cloudflare WARP (Proxy Mode)
         run: |
@@ -47,16 +44,28 @@ jobs:
 
           # 等待几秒让代理稳定
           sleep 5
-          # 验证 WARP 代理是否生效（可选）
+          # 验证 WARP 代理是否生效
           echo "Checking WARP proxy status..."
           curl -s -x socks5h://127.0.0.1:40000 https://www.cloudflare.com/cdn-cgi/trace | grep "warp" || true
 
       - name: Run Renew Script
         env:
           USERS_JSON: ${{ secrets.USERS_JSON }}
+          KATABUMP_EMAIL: ${{ secrets.KATABUMP_EMAIL }}
+          KATABUMP_PASSWORD: ${{ secrets.KATABUMP_PASSWORD }}
+          PROXY_SERVER: socks5://127.0.0.1:40000
+          IS_PROXY: 'true'
           TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
           TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
-          # 使用 WARP 的本地 SOCKS5 代理
-          PROXY_URL: "socks5://127.0.0.1:40000"
         run: |
           xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" python3 main.py
+
+      - name: Upload Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: renew-artifacts
+          path: |
+            *.png
+            screenshots/
+          if-no-files-found: ignore
